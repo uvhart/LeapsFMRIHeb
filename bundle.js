@@ -8647,6 +8647,9 @@ var TrainingScene = function (_util$Entity2) {
       document.getElementById("training-3").style.display = "none";
       // document.getElementById("training-5").style.display = "block";
       document.getElementById('training-4').style.display = "block";
+      // this.blockScene.teardown()
+      this.blockScene.resetBlocks();
+      this.blockScene.off("addedShape", this.onAddedShape, this);
     }
   }, {
     key: "onDonePart4",
@@ -8742,6 +8745,30 @@ var BlockScene = function (_util$Entity3) {
       var doneAddingButton = document.getElementById("done-adding");
       doneAddingButton.addEventListener("click", this.onAttemptDone);
       doneAddingButton.disabled = !allowEarlyExit;
+    }
+  }, {
+    key: "resetBlocks",
+    value: function resetBlocks() {
+      this.container.removeChild(this.blocksContainer);
+
+      this.blocksContainer = new PIXI.Container();
+      this.container.addChild(this.blocksContainer);
+      this.blockGrid = [];
+      for (var i = 0; i < 10; i++) {
+        var gridPos = new PIXI.Point(i, 0);
+        this.blockGrid.push(gridPos);
+
+        var rect = makeBlockShape(gridPos);
+
+        rect.buttonMode = true;
+        rect.on("pointerdown", this.onPointerDown.bind(this));
+        rect.on("pointerup", this.onPointerUp.bind(this));
+        rect.on("pointermove", this.onPointerMove.bind(this));
+
+        this.blocksContainer.addChild(rect);
+      }
+
+      this.updateBlocks();
     }
   }, {
     key: "update",
