@@ -9542,6 +9542,11 @@ var metricsStartSceneEvents = {
 var searchParams = new URLSearchParams(window.location.search);
 var allowEarlyExit = searchParams.get("allowEarlyExit") !== "false" && searchParams.get("allowEarlyExit") !== "0";
 var showResults = searchParams.get("showResults") !== "false" && searchParams.get("showResults") !== "0";
+var timerValue = searchParams.get("length");
+if (timerValue != null) {
+  MAX_SEARCH_TIME = parseInt(timerValue) * 60 * 1000;
+  document.getElementById("game-length-sentence").innerHTML = "\u05D0\u05D5\u05E8\u05DA \u05D4\u05DE\u05E9\u05D7\u05E7 \u05DB- " + parseInt(timerValue) + " \u05D3\u05E7\u05D5\u05EA.";
+}
 
 var galleryShapes = [];
 var searchScore = 0.33;
