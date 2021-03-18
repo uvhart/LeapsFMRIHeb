@@ -8591,6 +8591,7 @@ var TrainingScene = function (_util$Entity2) {
         letsPlayScene = true;
         document.getElementById("pixi-canvas").focus();
       });
+      document.getElementById("pixi-canvas").focus();
     }
   }, {
     key: "finishTraining",
@@ -8629,8 +8630,8 @@ var TrainingScene = function (_util$Entity2) {
 
       this.didDropBlock = true;
       this.blockScene.highlightMovableBlocks();
-
       document.getElementById("done-training-1").style.display = "block";
+      document.getElementById("pixi-canvas").focus();
     }
   }, {
     key: "onDonePart1",
@@ -8640,6 +8641,7 @@ var TrainingScene = function (_util$Entity2) {
 
       // hide title
       document.getElementById("training-title").style.visibility = "hidden";
+      document.getElementById("pixi-canvas").focus();
     }
   }, {
     key: "onDonePart2",
@@ -8662,6 +8664,7 @@ var TrainingScene = function (_util$Entity2) {
       // this.blockScene.teardown()
       this.blockScene.resetBlocks();
       this.blockScene.off("addedShape", this.onAddedShape, this);
+      document.getElementById("pixi-canvas").focus();
     }
   }, {
     key: "onDonePart4",
@@ -8698,6 +8701,8 @@ var BlockScene = function (_util$Entity3) {
   createClass(BlockScene, [{
     key: "setup",
     value: function setup() {
+      var _this4 = this;
+
       this.done = false;
       this.draggingBlock = null;
       this.draggingBlockStartGridPosition = null;
@@ -8709,6 +8714,8 @@ var BlockScene = function (_util$Entity3) {
       this.preventAddingShape = false;
       this.timesUp = false;
       this.changedShape = true;
+
+      this.mouseOverBlock = null;
 
       this.container = new PIXI.Container();
       sceneLayer.addChild(this.container);
@@ -8729,18 +8736,37 @@ var BlockScene = function (_util$Entity3) {
 
       // Make blocks
       this.blockGrid = [];
-      for (var i = 0; i < 10; i++) {
+
+      var _loop = function _loop(i) {
         var gridPos = new PIXI.Point(i, 0);
-        this.blockGrid.push(gridPos);
+        _this4.blockGrid.push(gridPos);
 
         var rect = makeBlockShape(gridPos);
 
         rect.buttonMode = true;
-        rect.on("pointerdown", this.onPointerDown.bind(this));
-        rect.on("pointerup", this.onPointerUp.bind(this));
-        rect.on("pointermove", this.onPointerMove.bind(this));
+        if (!buttonControls) {
+          rect.on("pointerdown", _this4.onPointerDown.bind(_this4));
+          rect.on("pointerup", _this4.onPointerUp.bind(_this4));
+        }
+        rect.on("pointermove", _this4.onPointerMove.bind(_this4));
 
-        this.blocksContainer.addChild(rect);
+        _self = _this4;
+
+        rect.mouseover = function (mouseData) {
+          if (rect.interactive) _self.mouseOverBlock = rect;
+        };
+
+        rect.mouseout = function (mouseData) {
+          _self.mouseOverBlock = null;
+        };
+
+        _this4.blocksContainer.addChild(rect);
+      };
+
+      for (var i = 0; i < 10; i++) {
+        var _self;
+
+        _loop(i);
       }
 
       this.updateBlocks();
@@ -8775,23 +8801,44 @@ var BlockScene = function (_util$Entity3) {
   }, {
     key: "resetBlocks",
     value: function resetBlocks() {
+      var _this5 = this;
+
       this.container.removeChild(this.blocksContainer);
 
       this.blocksContainer = new PIXI.Container();
       this.container.addChild(this.blocksContainer);
       this.blockGrid = [];
-      for (var i = 0; i < 10; i++) {
+
+      var _loop2 = function _loop2(i) {
         var gridPos = new PIXI.Point(i, 0);
-        this.blockGrid.push(gridPos);
+        _this5.blockGrid.push(gridPos);
 
         var rect = makeBlockShape(gridPos);
 
         rect.buttonMode = true;
-        rect.on("pointerdown", this.onPointerDown.bind(this));
-        rect.on("pointerup", this.onPointerUp.bind(this));
-        rect.on("pointermove", this.onPointerMove.bind(this));
+        if (!buttonControls) {
+          rect.on("pointerdown", _this5.onPointerDown.bind(_this5));
+          rect.on("pointerup", _this5.onPointerUp.bind(_this5));
+        }
+        rect.on("pointermove", _this5.onPointerMove.bind(_this5));
 
-        this.blocksContainer.addChild(rect);
+        _self = _this5;
+
+        rect.mouseover = function (mouseData) {
+          if (rect.interactive) _self.mouseOverBlock = rect;
+        };
+
+        rect.mouseout = function (mouseData) {
+          _self.mouseOverBlock = null;
+        };
+
+        _this5.blocksContainer.addChild(rect);
+      };
+
+      for (var i = 0; i < 10; i++) {
+        var _self;
+
+        _loop2(i);
       }
 
       this.updateBlocks();
@@ -8983,9 +9030,55 @@ var BlockScene = function (_util$Entity3) {
     key: "onPointerMove",
     value: function onPointerMove(e) {
       if (!this.draggingBlock) return;
-      if (e.data.pointerId !== this.draggingPointerId) return;
+      if (!buttonControls && e.data.pointerId !== this.draggingPointerId) return;
 
       this.draggingBlock.position = subtract(e.data.getLocalPosition(app$1.stage), this.blocksContainer.position);
+    }
+  }, {
+    key: "pickupBlockUsingButtons",
+    value: function pickupBlockUsingButtons() {
+      // This function is similar to the onPointerDown but without the things specific 
+      // for the pointer event.
+      if (this.draggingBlock) return; // Don't allow multiple drags
+      if (this.timesUp) return; // Don't allow drags when time is up
+      if (!this.mouseOverBlock) return;
+
+      this.draggingBlock = this.mouseOverBlock;
+      this.draggingBlockStartGridPosition = pixelPosToGridPos(this.draggingBlock.position);
+      this.startDragTime = Date.now();
+
+      // TODO there is something wrong with this line
+      this.blocksContainer.setChildIndex(this.draggingBlock, this.blocksContainer.children.length - 1);
+
+      var gridPos = pixelPosToGridPos(this.draggingBlock.position);
+      this.blockGrid = removeFromArray(this.blockGrid, gridPos);
+      this.highlightedBlocks.add(this.draggingBlock);
+
+      document.getElementById("html-layer").className = "no-pointer-events";
+    }
+  }, {
+    key: "dropBlockUsingButtons",
+    value: function dropBlockUsingButtons() {
+      // This function is basically the same as the onPointerUp 
+      // but without the parameter e :P
+
+      if (!this.draggingBlock) return;
+
+      this.dropBlock(this.draggingBlock, this.draggingBlock.position);
+
+      this.unhighlightBlock(this.draggingBlock);
+
+      this.draggingBlock = null;
+      this.draggingPointerId = null;
+      this.updateBlocks();
+
+      document.getElementById("add-shape").disabled = false;
+      this.changedShape = true;
+
+      // Re-enable html buttons
+      document.getElementById("html-layer").className = "";
+
+      this.emit("droppedBlock");
     }
   }, {
     key: "onKeyUp",
@@ -8995,6 +9088,14 @@ var BlockScene = function (_util$Entity3) {
         var keyValue = parseInt(e.key);
         if (keyValue == 1 || keyValue == 2) {
           this.onAddShape();
+        } else if (keyValue == 3 || keyValue == 4) {
+          if (buttonControls) {
+            if (this.draggingBlock) {
+              this.dropBlockUsingButtons();
+            } else {
+              this.pickupBlockUsingButtons();
+            }
+          }
         }
       }
     }
@@ -9181,7 +9282,7 @@ var BlockScene = function (_util$Entity3) {
           timeSinceLastMouseUp: Date.now() - this.lastMouseUpTime
         }
       });
-
+      document.getElementById("pixi-canvas").focus();
       this.emit("addedShape");
     }
   }, {
@@ -9194,6 +9295,7 @@ var BlockScene = function (_util$Entity3) {
       } else {
         document.getElementById("modal-confirm-done").style.display = "block";
       }
+      document.getElementById("pixi-canvas").focus();
     }
   }, {
     key: "cancelModal",
@@ -9255,7 +9357,7 @@ var GalleryScene = function (_util$Entity4) {
   createClass(GalleryScene, [{
     key: "setup",
     value: function setup() {
-      var _this5 = this;
+      var _this7 = this;
 
       var ROWS = 5;
       var COLS = 10;
@@ -9273,7 +9375,7 @@ var GalleryScene = function (_util$Entity4) {
 
       var pageContainer = void 0;
 
-      var _loop = function _loop(i) {
+      var _loop3 = function _loop3(i) {
         var row = Math.floor(i % ITEMS_PER_PAGE / COLS);
         var col = Math.floor(i % ITEMS_PER_PAGE % COLS);
 
@@ -9281,7 +9383,7 @@ var GalleryScene = function (_util$Entity4) {
         if (i % (ROWS * COLS) == 0) {
           pageContainer = new PIXI.Container();
           pageContainer.visible = false;
-          _this5.pages.addChild(pageContainer);
+          _this7.pages.addChild(pageContainer);
         }
         var galleryShapeCenter = new PIXI.Point(70 + col * 90, 95 + row * 85);
 
@@ -9293,7 +9395,7 @@ var GalleryScene = function (_util$Entity4) {
         pageContainer.addChild(galleryBg);
 
         galleryBg.on("pointerdown", function (e) {
-          return _this5.onToggleShape(galleryBg, i);
+          return _this7.onToggleShape(galleryBg, i);
         });
         galleryBg.buttonMode = true;
         galleryBg.interactive = true;
@@ -9334,17 +9436,17 @@ var GalleryScene = function (_util$Entity4) {
       };
 
       for (var i = 0; i < galleryShapes.length; i++) {
-        _loop(i);
+        _loop3(i);
       }
 
       // HTML
       document.getElementById("selection-gui").style.display = "block";
       document.getElementById("done-selection").addEventListener("click", this.onDoneSelection.bind(this));
       document.getElementById("previous-page-button").addEventListener("click", function (e) {
-        return _this5.changePage(_this5.pageNumber - 1);
+        return _this7.changePage(_this7.pageNumber - 1);
       });
       document.getElementById("next-page-button").addEventListener("click", function (e) {
-        return _this5.changePage(_this5.pageNumber + 1);
+        return _this7.changePage(_this7.pageNumber + 1);
       });
 
       this.updateDoneButton();
@@ -9549,8 +9651,11 @@ var showResults = searchParams.get("showResults") !== "false" && searchParams.ge
 var timerValue = searchParams.get("length");
 if (timerValue != null) {
   MAX_SEARCH_TIME = parseInt(timerValue) * 60 * 1000;
-  document.getElementById("game-length-sentence").innerHTML = "\u05D0\u05D5\u05E8\u05DA \u05D4\u05DE\u05E9\u05D7\u05E7 \u05DB- " + parseInt(timerValue) + " \u05D3\u05E7\u05D5\u05EA.";
+  document.getElementById("game-length-sentence").innerHTML = "\u05D0\u05D5\u05E8\u05DA \u05D4\u05DE\u05E9\u05D7\u05E7 \u05D4\u05D5\u05D0- " + parseInt(timerValue) + ".";
 }
+
+var buttonControls = searchParams.get("buttonControls") === "true";
+console.log(buttonControls);
 
 var galleryShapes = [];
 var searchScore = 0.33;
